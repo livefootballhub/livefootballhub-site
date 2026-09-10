@@ -20,7 +20,7 @@
   </div>
 </header>
 
-<div class="leaguebar">
+<div class="datebar">
   <div class="wrap"></div>
 </div>
 
@@ -41,8 +41,8 @@
 <script src="live.js"></script>
 <script>
   const container = document.getElementById("matches-container");
-  const defaultLeague = initLeagueBar((leagueId) => loadFixtures(leagueId, container));
-  loadFixtures(defaultLeague, container);
+  initBoardControls((offset, liveOnly) => loadBoard(offset, liveOnly, container));
+  loadBoard(0, false, container);
 </script>
 
 </body>
