@@ -44,7 +44,7 @@ async function loadFixtures(leagueId, container) {
   try {
     const data = await cachedFetch(`fx_${leagueId}`, `${API_HOST}/fixtures?league=${leagueId}&season=${SEASON}&next=8`);
     const past = await cachedFetch(`fxpast_${leagueId}`, `${API_HOST}/fixtures?league=${leagueId}&season=${SEASON}&last=6`);
-let html = "";
+    let html = "";
     html += `<h1 class="pagetitle">Latest Results</h1><div class="subtitle">Most recent matches</div>`;
     (past.response || []).forEach(f => {
       const home = f.teams.home.name, away = f.teams.away.name;
@@ -68,10 +68,28 @@ let html = "";
 async function loadStandings(leagueId, container) {
   container.innerHTML = '<div class="subtitle">Loading table…</div>';
   try {
-    const data = await cachedFetch(`st_${leagueId}`, `${API_HOST}/standings?league=${leagueId}&season=${SEASON}`);
-    const table = data.response[0].league.standings[0];
+    let season = SEASON;
+    let data = await cachedFetch(`st_${leagueId}_${season}`, `${API_HOST}/standings?league=${leagueId}&season=${season}`);
 
-    let html = `<table class="standings"><thead><tr><th class="rank">#</th><th>Club</th><th>W</th><th>D</th><th>L</th><th class="pts">Pts</th></tr></thead><tbody>`;
+    // The current season sometimes has no standings data yet on this plan.
+    // Fall back to the previous season so the page still shows something useful.
+    if (!data.response || data.response.length === 0) {
+      season = SEASON - 1;
+      data = await cachedFetch(`st_${leagueId}_${season}`, `${API_HOST}/standings?league=${leagueId}&season=${season}`);
+    }
+
+    if (!data.response || data.response.length === 0) {
+      container.innerHTML = `<div class="subtitle">No table data is available for this league right now.</div>`;
+      return;
+    }
+
+    const table = data.response[0].league.standings[0];
+    const noteHtml = season !== SEASON
+      ? `<div class="subtitle">Showing ${season}/${season + 1} standings — the current season's table isn't available yet.</div>`
+      : "";
+
+    let html = noteHtml;
+    html += `<table class="standings"><thead><tr><th class="rank">#</th><th>Club</th><th>W</th><th>D</th><th>L</th><th class="pts">Pts</th></tr></thead><tbody>`;
     table.forEach(row => {
       html += `<tr><td class="rank">${row.rank}</td><td>${row.team.name}</td><td>${row.all.win}</td><td>${row.all.draw}</td><td>${row.all.lose}</td><td class="pts">${row.points}</td></tr>`;
     });
