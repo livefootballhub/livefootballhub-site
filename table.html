@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>League Tables — LiveFootballHub</title>
+<meta name="description" content="Live league standings for football leagues worldwide.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">LiveFootballHub</div>
+    <nav class="top">
+      <a href="index.html">Scores</a>
+      <a href="table.html">Table</a>
+      <a href="about.html">About</a>
+    </nav>
+  </div>
+</header>
+
+<div class="leaguebar">
+  <div class="wrap"></div>
+</div>
+
+<main class="wrap">
+  <section>
+    <h1 class="pagetitle" id="table-title">League Table</h1>
+    <div class="subtitle">Updated live</div>
+    <div class="ad-slot">Ad slot — paste your AdSense code here</div>
+    <div id="standings-container">
+      <div class="subtitle">Loading…</div>
+    </div>
+    <div class="ad-slot">Ad slot — paste your AdSense code here</div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <a href="table.html">Table</a>
+    <a href="about.html">About</a>
+    <div style="margin-top:10px;">© 2026 LiveFootballHub. Football scores, fixtures & tables.</div>
+  </div>
+</footer>
+
+<script src="live.js"></script>
+<script>
+  const container = document.getElementById("standings-container");
+  const defaultLeague = initLeagueBar((leagueId) => loadStandings(leagueId, container));
+  loadStandings(defaultLeague, container);
+</script>
+
+</body>
+</html>

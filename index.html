@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LiveFootballHub — Football Scores, Fixtures & Tables</title>
+<meta name="description" content="Live football scores, upcoming fixtures, league tables and top scorers for leagues worldwide.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">LiveFootballHub</div>
+    <nav class="top">
+      <a href="index.html">Scores</a>
+      <a href="table.html">Table</a>
+      <a href="about.html">About</a>
+    </nav>
+  </div>
+</header>
+
+<div class="leaguebar">
+  <div class="wrap"></div>
+</div>
+
+<main class="wrap">
+  <section id="matches-container">
+    <div class="subtitle">Loading…</div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <a href="table.html">Table</a>
+    <a href="about.html">About</a>
+    <div style="margin-top:10px;">© 2026 LiveFootballHub. Football scores, fixtures & tables.</div>
+  </div>
+</footer>
+
+<script src="live.js"></script>
+<script>
+  const container = document.getElementById("matches-container");
+  const defaultLeague = initLeagueBar((leagueId) => loadFixtures(leagueId, container));
+  loadFixtures(defaultLeague, container);
+</script>
+
+</body>
+</html>
