@@ -44,8 +44,7 @@ async function loadFixtures(leagueId, container) {
   try {
     const data = await cachedFetch(`fx_${leagueId}`, `${API_HOST}/fixtures?league=${leagueId}&season=${SEASON}&next=8`);
     const past = await cachedFetch(`fxpast_${leagueId}`, `${API_HOST}/fixtures?league=${leagueId}&season=${SEASON}&last=6`);
-
-    let html = "";
+let html = "";
     html += `<h1 class="pagetitle">Latest Results</h1><div class="subtitle">Most recent matches</div>`;
     (past.response || []).forEach(f => {
       const home = f.teams.home.name, away = f.teams.away.name;
@@ -54,3 +53,46 @@ async function loadFixtures(leagueId, container) {
     });
 
     html += `<div class="ad-slot">Ad slot — paste your AdSense code here</div>`;
+    html += `<h1 class="pagetitle" style="margin-top:40px;">Upcoming Fixtures</h1><div class="subtitle">Kickoff times shown in your local time</div>`;
+    (data.response || []).forEach(f => {
+      const home = f.teams.home.name, away = f.teams.away.name;
+      html += `<div class="match"><div class="teams">${home} <span style="font-weight:400;color:#8a8f95;">vs</span> ${away}</div><div class="time">${fmtTime(f.fixture.date)}</div></div>`;
+    });
+
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = `<div class="subtitle">Couldn't load live data right now (${e.message}).</div>`;
+  }
+}
+
+async function loadStandings(leagueId, container) {
+  container.innerHTML = '<div class="subtitle">Loading table…</div>';
+  try {
+    const data = await cachedFetch(`st_${leagueId}`, `${API_HOST}/standings?league=${leagueId}&season=${SEASON}`);
+    const table = data.response[0].league.standings[0];
+
+    let html = `<table class="standings"><thead><tr><th class="rank">#</th><th>Club</th><th>W</th><th>D</th><th>L</th><th class="pts">Pts</th></tr></thead><tbody>`;
+    table.forEach(row => {
+      html += `<tr><td class="rank">${row.rank}</td><td>${row.team.name}</td><td>${row.all.win}</td><td>${row.all.draw}</td><td>${row.all.lose}</td><td class="pts">${row.points}</td></tr>`;
+    });
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = `<div class="subtitle">Couldn't load the table right now (${e.message}).</div>`;
+  }
+}
+
+function initLeagueBar(onSelect) {
+  const bar = document.querySelector(".leaguebar .wrap");
+  if (!bar) return;
+  bar.innerHTML = LEAGUES.map((l, i) => `<a href="#" data-league="${l.id}" class="${i === 0 ? "active" : ""}">${l.name}</a>`).join("");
+  bar.querySelectorAll("a").forEach(a => {
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      bar.querySelectorAll("a").forEach(x => x.classList.remove("active"));
+      a.classList.add("active");
+      onSelect(a.dataset.league);
+    });
+  });
+  return LEAGUES[0].id;
+}
