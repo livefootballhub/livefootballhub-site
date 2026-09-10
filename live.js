@@ -22,6 +22,22 @@ const FINISHED_STATUSES = ["FT", "AET", "PEN", "AWD", "WO"];
 const CACHE_TTL_MIN = 10;
 let liveRefreshTimer = null;
 
+function getFavorites() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem("favMatches") || "[]"));
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function toggleFavorite(fixtureId) {
+  const favs = getFavorites();
+  const key = String(fixtureId);
+  if (favs.has(key)) favs.delete(key); else favs.add(key);
+  localStorage.setItem("favMatches", JSON.stringify([...favs]));
+  return favs.has(key);
+}
+
 async function cachedFetch(cacheKey, url, ttlMin = CACHE_TTL_MIN) {
   try {
     const cached = localStorage.getItem(cacheKey);
@@ -77,45 +93,93 @@ function matchRowHTML(f) {
   const info = statusInfo(f);
   const hasScore = gh !== null && gh !== undefined;
 
-  let statusHTML;
+  let timeColHTML;
   if (info.kind === "live") {
-    statusHTML = `<span class="live-tag"><span class="live-dot"></span>${info.label}</span>`;
+    timeColHTML = `<span class="live-tag"><span class="live-dot"></span>${info.label}</span>`;
   } else if (info.kind === "finished") {
-    statusHTML = `<span class="final-tag">FT</span>`;
+    timeColHTML = `<span class="final-tag">FT</span>`;
   } else if (info.kind === "scheduled") {
-    statusHTML = `<span class="kick-time">${info.label}</span>`;
+    timeColHTML = `<span class="kick-time">${info.label}</span>`;
   } else {
-    statusHTML = `<span class="final-tag">${info.label}</span>`;
+    timeColHTML = `<span class="final-tag">${info.label}</span>`;
   }
 
-  const scoreHTML = hasScore
-    ? `<div class="score">${gh} – ${ga}</div>`
-    : `<div class="score score-pending">vs</div>`;
+  const homeScore = hasScore ? gh : "";
+  const awayScore = hasScore ? ga : "";
+  const scoreColClass = hasScore ? "score-col" : "score-col score-col-hidden";
 
   const venue = f.fixture.venue && f.fixture.venue.name ? f.fixture.venue.name : null;
   const referee = f.fixture.referee || null;
   const detailBits = [venue, referee ? `Referee: ${referee}` : null].filter(Boolean);
-  const detailHTML = detailBits.length
-    ? `<div class="match-detail">${detailBits.join(" · ")}</div>`
-    : `<div class="match-detail">No further details available.</div>`;
+  const metaHTML = detailBits.length ? detailBits.join(" · ") : "No further details available.";
+
+  const isFav = getFavorites().has(String(f.fixture.id));
 
   return `<div class="match" data-fixture-id="${f.fixture.id}">
     <div class="match-row">
-      <div class="side home">
-        <span class="crest"><img src="${home.logo}" alt="" loading="lazy"></span>
-        <span class="team-name">${home.name}</span>
+      <div class="time-col">${timeColHTML}</div>
+      <div class="teams-col">
+        <div class="team-row"><img class="crest" src="${home.logo}" alt="" loading="lazy"><span class="team-name">${home.name}</span></div>
+        <div class="team-row"><img class="crest" src="${away.logo}" alt="" loading="lazy"><span class="team-name">${away.name}</span></div>
       </div>
-      <div class="mid">
-        ${scoreHTML}
-        <div class="status-line">${statusHTML}</div>
+      <div class="${scoreColClass}">
+        <span class="score-num">${homeScore}</span>
+        <span class="score-num">${awayScore}</span>
       </div>
-      <div class="side away">
-        <span class="team-name">${away.name}</span>
-        <span class="crest"><img src="${away.logo}" alt="" loading="lazy"></span>
-      </div>
+      <div class="fav-star ${isFav ? "active" : ""}" data-fav="1">★</div>
     </div>
-    ${detailHTML}
+    <div class="match-detail">
+      <div class="detail-meta">${metaHTML}</div>
+      <div class="detail-events" data-loaded="false"><span class="detail-hint">Tap to load goals, cards &amp; corners</span></div>
+    </div>
   </div>`;
+}
+
+function eventIcon(ev) {
+  if (ev.type === "Goal") {
+    if (ev.detail === "Missed Penalty") return "❌";
+    if (ev.detail === "Own Goal") return "⚽ (OG)";
+    return "⚽";
+  }
+  if (ev.type === "Card") return ev.detail === "Red Card" ? "🟥" : "🟨";
+  return "•";
+}
+
+function eventLineHTML(ev) {
+  const min = ev.time.elapsed + (ev.time.extra ? "+" + ev.time.extra : "");
+  const player = ev.player && ev.player.name ? ev.player.name : "Unknown";
+  return `<div class="event-line"><span class="event-min">${min}'</span><span class="event-icon">${eventIcon(ev)}</span><span class="event-player">${player}</span><span class="event-team">${ev.team.name}</span></div>`;
+}
+
+async function loadMatchDetail(fixtureId, panel) {
+  panel.innerHTML = `<span class="detail-hint">Loading…</span>`;
+  try {
+    const [evData, statData] = await Promise.all([
+      cachedFetch(`evt_${fixtureId}`, `${API_HOST}/fixtures/events?fixture=${fixtureId}`, 5),
+      cachedFetch(`stat_${fixtureId}`, `${API_HOST}/fixtures/statistics?fixture=${fixtureId}`, 5)
+    ]);
+
+    const events = (evData.response || [])
+      .filter(e => e.type === "Goal" || e.type === "Card")
+      .sort((a, b) => a.time.elapsed - b.time.elapsed);
+
+    let html = events.length
+      ? `<div class="event-list">${events.map(eventLineHTML).join("")}</div>`
+      : `<div class="detail-hint">No goals or cards yet.</div>`;
+
+    const stats = statData.response || [];
+    if (stats.length === 2) {
+      const corners = stats.map(t => {
+        const s = (t.statistics || []).find(x => x.type === "Corner Kicks");
+        return s && s.value !== null ? s.value : 0;
+      });
+      html += `<div class="stat-line">Corners: ${corners[0]} – ${corners[1]}</div>`;
+    }
+
+    panel.innerHTML = html;
+  } catch (e) {
+    panel.innerHTML = `<span class="detail-hint">Couldn't load match details.</span>`;
+  }
 }
 
 function groupMatches(matches) {
@@ -140,10 +204,13 @@ function renderGroups(groups, container) {
     html += `<div class="league-group">
       <div class="league-header">
         <img src="${g.league.logo}" alt="" loading="lazy">
-        <span>${g.league.name}</span>
-        <span class="league-country">${g.league.country || ""}</span>
+        <div class="league-titles">
+          <span class="league-name">${g.league.name}</span>
+          <span class="league-country">${g.league.country || ""}</span>
+        </div>
+        <span class="league-chevron">›</span>
       </div>
-      ${g.matches.map(matchRowHTML).join("")}
+      <div class="league-matches">${g.matches.map(matchRowHTML).join("")}</div>
     </div>`;
   });
   container.innerHTML = html;
@@ -152,7 +219,28 @@ function renderGroups(groups, container) {
 
 function bindMatchClicks(container) {
   container.querySelectorAll(".match").forEach(row => {
-    row.addEventListener("click", () => row.classList.toggle("expanded"));
+    const fixtureId = row.dataset.fixtureId;
+    const star = row.querySelector(".fav-star");
+
+    if (star) {
+      star.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const nowFav = toggleFavorite(fixtureId);
+        star.classList.toggle("active", nowFav);
+      });
+    }
+
+    row.addEventListener("click", () => {
+      const wasExpanded = row.classList.contains("expanded");
+      row.classList.toggle("expanded");
+      if (!wasExpanded) {
+        const panel = row.querySelector(".detail-events");
+        if (panel && panel.dataset.loaded !== "true") {
+          panel.dataset.loaded = "true";
+          loadMatchDetail(fixtureId, panel);
+        }
+      }
+    });
   });
 }
 
@@ -167,17 +255,19 @@ function applyLiveUpdate(f, container) {
   const row = container.querySelector(`.match[data-fixture-id="${f.fixture.id}"]`);
   if (!row) return;
   const info = statusInfo(f);
-  const scoreEl = row.querySelector(".score");
-  const statusEl = row.querySelector(".status-line");
-  if (scoreEl && f.goals.home !== null) {
-    scoreEl.textContent = `${f.goals.home} – ${f.goals.away}`;
-    scoreEl.classList.remove("score-pending");
+  const scoreNums = row.querySelectorAll(".score-num");
+  const scoreCol = row.querySelector(".score-col");
+  const timeCol = row.querySelector(".time-col");
+  if (scoreNums.length === 2 && f.goals.home !== null) {
+    scoreNums[0].textContent = f.goals.home;
+    scoreNums[1].textContent = f.goals.away;
+    if (scoreCol) scoreCol.classList.remove("score-col-hidden");
   }
-  if (statusEl) {
+  if (timeCol) {
     if (info.kind === "live") {
-      statusEl.innerHTML = `<span class="live-tag"><span class="live-dot"></span>${info.label}</span>`;
+      timeCol.innerHTML = `<span class="live-tag"><span class="live-dot"></span>${info.label}</span>`;
     } else if (info.kind === "finished") {
-      statusEl.innerHTML = `<span class="final-tag">FT</span>`;
+      timeCol.innerHTML = `<span class="final-tag">FT</span>`;
     }
   }
 }
@@ -287,26 +377,53 @@ function initLeagueBar(onSelect) {
   return LEAGUES[0].id;
 }
 
+function dayLabel(offset) {
+  if (offset === 0) return "Today";
+  if (offset === 1) return "Tomorrow";
+  if (offset === -1) return "Yesterday";
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+}
+
 function initBoardControls(onChange) {
   const bar = document.querySelector(".datebar .wrap");
   if (!bar) return;
-  const tabs = [
-    { key: "live", label: "🔴 Live" },
-    { key: "-1", label: "Yesterday" },
-    { key: "0", label: "Today" },
-    { key: "1", label: "Tomorrow" }
-  ];
-  bar.innerHTML = tabs.map(t => `<a href="#" data-key="${t.key}" class="${t.key === "0" ? "active" : ""}">${t.label}</a>`).join("");
-  bar.querySelectorAll("a").forEach(a => {
-    a.addEventListener("click", (e) => {
-      e.preventDefault();
-      bar.querySelectorAll("a").forEach(x => x.classList.remove("active"));
-      a.classList.add("active");
-      if (a.dataset.key === "live") {
-        onChange(0, true);
-      } else {
-        onChange(parseInt(a.dataset.key, 10), false);
-      }
+
+  let offset = 0;
+  let liveOnly = false;
+
+  bar.innerHTML = `
+    <button type="button" class="live-pill" aria-pressed="false">LIVE</button>
+    <button type="button" class="day-arrow" data-dir="-1" aria-label="Previous day">‹</button>
+    <span class="day-label">Today</span>
+    <button type="button" class="day-arrow" data-dir="1" aria-label="Next day">›</button>
+  `;
+
+  const livePill = bar.querySelector(".live-pill");
+  const label = bar.querySelector(".day-label");
+  const arrows = bar.querySelectorAll(".day-arrow");
+
+  function render() {
+    label.textContent = liveOnly ? "Live matches" : dayLabel(offset);
+    livePill.classList.toggle("active", liveOnly);
+    arrows.forEach(a => a.disabled = liveOnly);
+  }
+
+  livePill.addEventListener("click", () => {
+    liveOnly = !liveOnly;
+    render();
+    onChange(offset, liveOnly);
+  });
+
+  arrows.forEach(a => {
+    a.addEventListener("click", () => {
+      if (liveOnly) return;
+      offset += parseInt(a.dataset.dir, 10);
+      render();
+      onChange(offset, liveOnly);
     });
   });
+
+  render();
 }
