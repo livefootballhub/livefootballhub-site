@@ -55,19 +55,31 @@ nav.top a:hover { color: var(--text); }
 .datebar {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  white-space: nowrap;
 }
-.datebar .wrap { display: flex; gap: 6px; padding: 10px 20px; }
-.datebar a {
+.datebar .wrap { display: flex; align-items: center; gap: 14px; padding: 12px 20px; }
+.live-pill {
+  background: var(--surface-alt);
   color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 6px 14px;
-  border-radius: 999px;
   border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  cursor: pointer;
 }
-.datebar a.active { background: var(--red); color: #fff; border-color: var(--red); }
+.live-pill.active { background: var(--red); color: #fff; border-color: var(--red); }
+.day-arrow {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+.day-arrow:disabled { color: var(--border); cursor: default; }
+.day-label { flex: 1; text-align: center; font-weight: 700; font-size: 0.95rem; }
 
 section { padding: 30px 0; }
 
@@ -79,45 +91,57 @@ h1.pagetitle {
 }
 .subtitle { color: var(--muted); font-size: 0.92rem; margin-bottom: 20px; }
 
-.league-group { margin-bottom: 26px; }
+.league-group { margin-bottom: 18px; }
 .league-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 4px;
-  font-weight: 700;
-  font-size: 0.9rem;
-  color: var(--text);
-  border-bottom: 2px solid var(--red);
-  margin-bottom: 8px;
+  gap: 10px;
+  padding: 10px 4px;
 }
-.league-header img { width: 20px; height: 20px; object-fit: contain; }
-.league-country { color: var(--muted); font-weight: 400; font-size: 0.78rem; margin-left: 2px; }
+.league-header img { width: 22px; height: 22px; object-fit: contain; }
+.league-titles { display: flex; flex-direction: column; flex: 1; }
+.league-name { font-weight: 700; font-size: 0.92rem; color: var(--text); }
+.league-country { color: var(--muted); font-weight: 400; font-size: 0.76rem; }
+.league-chevron { color: var(--muted); font-size: 1.1rem; }
+.league-matches {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
 
 .match {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  margin-bottom: 8px;
-  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 8px;
   cursor: pointer;
-  transition: border-color 0.15s ease;
 }
-.match:hover { border-color: #45454a; }
-.match-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.match .side { display: flex; align-items: center; gap: 8px; flex: 1; font-weight: 600; font-size: 0.92rem; color: var(--text); }
-.match .side.away { justify-content: flex-end; text-align: right; }
-.match .crest img { width: 22px; height: 22px; object-fit: contain; }
-.match .mid { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 74px; }
-.match .score { font-weight: 800; font-size: 1.05rem; color: var(--text); }
-.match .score-pending { color: var(--muted); font-weight: 400; font-size: 0.9rem; }
-.match .kick-time { color: var(--muted); font-size: 0.8rem; }
-.match .final-tag { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-.match .live-tag {
+.match:last-child { border-bottom: none; }
+.match-row { display: flex; align-items: center; gap: 12px; }
+.time-col {
+  width: 46px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding-right: 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.teams-col { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.team-row { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 600; color: var(--text); }
+.team-row .crest { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
+.team-row .team-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.score-col { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; font-weight: 800; font-size: 0.92rem; color: var(--text); min-width: 16px; }
+.score-col-hidden { visibility: hidden; }
+.fav-star { color: var(--muted); font-size: 1.05rem; width: 20px; text-align: center; flex-shrink: 0; cursor: pointer; }
+.fav-star.active { color: var(--gold); }
+.final-tag { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.live-tag {
   display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.75rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  font-size: 0.72rem;
   color: var(--red);
   font-weight: 800;
   text-transform: uppercase;
@@ -128,20 +152,25 @@ h1.pagetitle {
   border-radius: 50%;
   background: var(--red);
   animation: pulse 1.4s infinite;
+  display: inline-block;
+  margin-right: 4px;
 }
 @keyframes pulse {
   0% { box-shadow: 0 0 0 0 rgba(255,59,59,0.5); }
   70% { box-shadow: 0 0 0 6px rgba(255,59,59,0); }
   100% { box-shadow: 0 0 0 0 rgba(255,59,59,0); }
 }
-.match-detail {
-  max-height: 0;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 0.78rem;
-  transition: max-height 0.2s ease;
-}
-.match.expanded .match-detail { max-height: 60px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.match-detail { display: none; padding-left: 58px; padding-top: 10px; }
+.match.expanded .match-detail { display: block; }
+.detail-meta { color: var(--muted); font-size: 0.76rem; margin-bottom: 8px; }
+.detail-hint { color: var(--muted); font-size: 0.78rem; }
+.event-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.event-line { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text); }
+.event-min { color: var(--muted); width: 30px; flex-shrink: 0; }
+.event-icon { width: 18px; text-align: center; flex-shrink: 0; }
+.event-player { flex: 1; }
+.event-team { color: var(--muted); font-size: 0.72rem; }
+.stat-line { color: var(--text); font-size: 0.8rem; font-weight: 600; padding-top: 6px; border-top: 1px dashed var(--border); }
 
 table.standings {
   width: 100%;
@@ -196,3 +225,4 @@ footer.site a { color: var(--text); margin-right: 14px; }
   .match .side { font-size: 0.85rem; }
   .match .crest img { width: 18px; height: 18px; }
 }
+
